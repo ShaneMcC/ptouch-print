@@ -132,7 +132,6 @@
 					$bin = decbin($bit);
 					if ($this->mirrored) { $bin = strrev($bin); }
 					$bin = str_pad($bin, 8, '0', $this->mirrored ? STR_PAD_RIGHT : STR_PAD_LEFT);
-
 					echo str_replace('1', '█', str_replace('0', ' ', $bin));
 				}
 				echo '│';

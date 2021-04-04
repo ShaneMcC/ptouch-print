@@ -162,16 +162,25 @@
 		}
 
 		/**
+		 * Print this print job to a String
+		 *
+		 * @throws Exception If the job is not printable
+		 */
+		public function printToString(): String {
+			if ($this->jobState != PrintJob::JOBSTATE_READY) {
+				throw new Exception('You can not print an incomplete job.');
+			}
+
+			return $this->job->getData();
+		}
+
+		/**
 		 * Print this print job to STDOUT
 		 *
 		 * @throws Exception If the job is not printable
 		 */
 		public function printToSTDOUT() {
-			if ($this->jobState != PrintJob::JOBSTATE_READY) {
-				throw new Exception('You can not print an incomplete job.');
-			}
-
-			echo $this->job->getData();
+			echo $this->printToString();
 		}
 
 		/**

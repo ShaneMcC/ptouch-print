@@ -311,7 +311,7 @@
 		public function displayHex(int $width = 16) {
 			$c = 1;
 			foreach (str_split($this->data) as $d) {
-				echo str_pad(dechex(ord($d)), 2, '0'), ' ';
+				echo str_pad(dechex(ord($d)), 2, '0', STR_PAD_LEFT), ' ';
 				if ($c++ % $width == 0) {
 					echo "\n";
 				}
