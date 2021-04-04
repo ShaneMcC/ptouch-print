@@ -1,0 +1,20 @@
+{
+    "name": "shanemcc/ptouch-print",
+    "description": "Library for interacting with brother ptouch printers.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Shane Mc Cormack",
+            "email": "shanemcc@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "ShaneMcC\\PTouchPrint\\": "src"
+        }
+    }
+}
