@@ -44,13 +44,56 @@
 			}
 
 			$data = static::getMagicString();
+			$outBits = $this->lineArr;
 			if ($this->compressionMode == CompressionMode::TIFF) {
-				$data .= pack('v*', count($this->lineArr) + 1);
-				$data .= chr(count($this->lineArr) - 1);
-			} else {
-				$data .= pack('v*', count($this->lineArr));
+				// Attempt to compress the line.
+				$inBits = $outBits;
+				$outBits = [];
+				$group = [];
+				for ($i = 0; $i < count($inBits); /* Incremented Internally */) {
+					// Current bit.
+					$bit = $inBits[$i];
+
+					// Find how many times this repeats.
+					$count = 1;
+					while (isset($inBits[$i + 1]) && $inBits[$i + 1] == $bit) {
+						$i++;
+						$count++;
+					}
+
+					// If we repeated more than twice then we send the data as 2 bytes of <count> <data>
+					if ($count > 2) {
+						// If there was a previous group of non-repeating data, send it first.
+						if (!empty($group)) {
+							$outBits[] = (count($group) - 1);
+							$outBits = array_merge($outBits, $group);
+						}
+						$group = [];
+
+						// Now send our bits.
+						$outBits[] = 0 - ($count - 1);
+						$outBits[] = $bit;
+					} else {
+						// Otherwise, add it to the group an appropriate number of times.
+						$group = array_merge($group, array_fill(0, $count, $bit));
+					}
+					$i++;
+				}
+				// Send the final bit of non-repeated data.
+				if (!empty($group)) {
+					$outBits[] = (count($group) - 1);
+					$outBits = array_merge($outBits, $group);
+				}
+
+				// Shorter to just send the line as a consecutive set of characters.
+				if (count($outBits) > count($inBits) + 1) {
+					$outBits = $inBits;
+					array_unshift($outBits, count($outBits) - 1);
+				}
 			}
-			foreach ($this->lineArr as $l) {
+
+			$data .= pack('v*', count($outBits));
+			foreach ($outBits as $l) {
 				$data .= chr($l);
 			}
 
