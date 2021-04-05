@@ -1,5 +1,7 @@
 <?php
-	namespace ShaneMcC\PTouchPrint\JobBinary;
+	namespace ShaneMcC\PTouchPrint\JobBinary\Actions;
+
+	use ShaneMcC\PTouchPrint\JobBinary\JobBinary;
 
 	/**
 	 * Select compression mode - M
@@ -20,10 +22,34 @@
 			$this->compressionMode = $compressionMode;
 		}
 
-		public function getBinary(): String {
-			$data = '';
-			$data .= chr(0x4D); // m
+		public static function getMagic(): array {
+			return [0x4D]; // m
+		}
+
+		public static function getName(): string {
+			return 'Compression';
+		}
+
+		public static function argCount(): int {
+			return 1;
+		}
+
+		public  function getBinary(): String {
+			$data = static::getMagicString();
 			$data .= chr($this->compressionMode); // {n} = 0 == None, 2 == TIFF
 			return $data;
+		}
+
+		public static function decodeBinary(array $args): String {
+			switch ($args[0]) {
+				case 0:
+					return '(None)';
+				case 1:
+					return '(Reserved)';
+				case 2:
+					return '(TIFF)';
+				default:
+					return '(Unknown)';
+			}
 		}
 	}

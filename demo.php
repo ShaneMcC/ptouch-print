@@ -65,7 +65,9 @@
 			die(0);
 		}
 	} catch (Throwable $ex) {
-		echo 'There was an error: ', $ex->getMessage(), "\n";
+		echo $ex::class, ' in ', $ex->getFile(), ':', $ex->getLine(), ': ', "\n";
+		echo $ex->getMessage(), "\n";
+
 		echo "\n";
 		echo $ex->getTraceAsString();
 		echo "\n";

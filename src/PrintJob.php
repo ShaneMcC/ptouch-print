@@ -3,19 +3,19 @@
 	namespace ShaneMcC\PTouchPrint;
 
 	use Exception;
-	use ShaneMcC\PTouchPrint\JobBinary\AdvancedMode;
-	use ShaneMcC\PTouchPrint\JobBinary\CompressionMode;
-	use ShaneMcC\PTouchPrint\JobBinary\cutEachX;
-	use ShaneMcC\PTouchPrint\JobBinary\Initialize;
-	use ShaneMcC\PTouchPrint\JobBinary\Invalidate;
-	use ShaneMcC\PTouchPrint\JobBinary\Margin;
-	use ShaneMcC\PTouchPrint\JobBinary\Mode;
-	use ShaneMcC\PTouchPrint\JobBinary\Notify;
-	use ShaneMcC\PTouchPrint\JobBinary\PrintAndFeed;
-	use ShaneMcC\PTouchPrint\JobBinary\PrintInfo;
-	use ShaneMcC\PTouchPrint\JobBinary\PrintPage;
-	use ShaneMcC\PTouchPrint\JobBinary\RasterLine;
-	use ShaneMcC\PTouchPrint\JobBinary\SwitchDynamicCommand;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\AdvancedMode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\CompressionMode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\cutEachX;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Initialize;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Invalidate;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Margin;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Mode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Notify;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintAndFeed;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintInfo;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintPage;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\RasterLine;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\SwitchDynamicCommand;
 
 	class PrintJob {
 		private array $job;
@@ -25,6 +25,7 @@
 		private bool $chainPrinting;
 		private int $tapeSize;
 		private int $marginSize;
+		private int $compressionMode;
 
 		private bool $hasImages = false;
 		private int $jobState = PrintJob::JOBSTATE_NONE;
@@ -41,15 +42,16 @@
 		 * @param int $autoCut Auto cut after how many pages? (Default: 1 - 0 to disable)
 		 * @param bool $halfCut Use half-cutting.
 		 * @param bool $chainPrinting Use chain-printing.
+		 * @param int $compressionMode What compression mode to use?
 		 */
-		public function __construct(int $tapeSize = 12, int $marginSize = 14, int $autoCut = 1, bool $halfCut = true, bool $chainPrinting = false) {
+		public function __construct(int $tapeSize = 12, int $marginSize = 14, int $autoCut = 1, bool $halfCut = true, bool $chainPrinting = false, int $compressionMode = CompressionMode::TIFF) {
 			$this->autoCut = $autoCut;
 			$this->halfCut = $halfCut;
 			$this->chainPrinting = $chainPrinting;
 			$this->tapeSize = $tapeSize;
 			$this->marginSize = $marginSize;
+			$this->compressionMode = $compressionMode;
 		}
-
 
 		/**
 		 * Start a new print job.
@@ -69,7 +71,7 @@
 			}
 			$this->job[] = new AdvancedMode($this->halfCut, $this->chainPrinting);
 			$this->job[] = new Margin($this->marginSize);
-			$this->job[] = new CompressionMode();
+			$this->job[] = new CompressionMode($this->compressionMode);
 			$this->jobState = PrintJob::JOBSTATE_START;
 
 			return $this;
@@ -108,7 +110,7 @@
 			if ($this->hasImages) {$this->job[] = new PrintPage(); }
 
 			foreach ($image->getLines() as $line) {
-				$this->job[] = new RasterLine($line, CompressionMode::TIFF);
+				$this->job[] = new RasterLine($line, $this->compressionMode);
 			}
 			$this->hasImages = true;
 

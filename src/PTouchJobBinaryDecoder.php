@@ -1,8 +1,25 @@
 <?php
 	namespace ShaneMcC\PTouchPrint;
 
-
 	use Exception;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\AdvancedMode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\CompressionMode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\cutEachX;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Initialize;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Invalidate;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Margin;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Mode;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Notify;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintAndFeed;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintInfo;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\PrintPage;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\RasterLine;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\RasterZero;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\SwitchDynamicCommand;
+	use ShaneMcC\PTouchPrint\JobBinary\Actions\Undocumented;
+	use ShaneMcC\PTouchPrint\JobBinary\Drawable;
+	use ShaneMcC\PTouchPrint\JobBinary\DynamicLength;
+	use ShaneMcC\PTouchPrint\JobBinary\Repeatable;
 
 	/**
 	 * This will decode a raw stream and display it to the user.
@@ -17,11 +34,11 @@
 			$s = [];
 
 			for ($i = 0; $i < $count; $i++) {
-				$b[] = $_b = (int)ord($string[$index + $i]);
-				$s[] = str_pad(dechex($_b), 2, '0', STR_PAD_LEFT);
+				if (isset($string[$index + $i])) {
+					$b[] = $_b = (int)ord($string[$index + $i]);
+					$s[] = str_pad(dechex($_b), 2, '0', STR_PAD_LEFT);
+				}
 			}
-
-			if ($count == 1) { $b = $b[0]; $s = $s[0]; }
 
 			return [$b, $s];
 		}
@@ -58,237 +75,142 @@
 
 		public static function decode(String $string, $drawRaster = false) {
 			$compressionMode = 0;
-			for ($i = 0; $i < strlen($string); $i++) {
-				[$b, $s] = static::get($string, $i);
 
-				switch ($b) {
-					case 0x00: // NULL
-						echo static::colouriseString($s, 'light_blue'), ' - Invalidate';
-						$count = 0;
-						do { $count++; } while (ord($string[++$i]) === 0);
-						echo ' (', $count, ')', "\n";
-						$i--;
-						break;
-					case 0x1B: // ESC
-						[$b, $s] = static::get($string, ++$i);
-						switch ($b) {
-							case 0x40: // @
-								echo static::colouriseString('ESC @', 'light_blue'), ' - Initialize', "\n";
-								break;
-							case 0x69: // i
-								[$b, $s] = static::get($string, ++$i);
-								switch ($b) {
-									case 0x63: // s
-										echo static::colouriseString('ESC i s', 'light_blue'), ' - Status information request', "\n";
-										break;
-									case 0x61: // a
-										[$n1b, $n1s] = static::get($string, ++$i);
-										switch ($n1b) {
-											case 0:
-												$mode = 'ESC/P';
-												break;
-											case 1:
-												$mode = 'Raster';
-												break;
-											case 3:
-												$mode = 'P-Touch Template';
-												break;
-											default:
-												$mode = 'Unknown';
-										}
-										echo static::colouriseString('ESC i a ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Switch Mode (', $mode, ')', "\n";
-										break;
-									case 0x21: // !
-										[$n1b, $n1s] = static::get($string, ++$i);
-										switch ($n1b) {
-											case 0:
-												$mode = 'Notify (Default)';
-												break;
-											case 1:
-												$mode = 'Do not notify';
-												break;
-											default:
-												$mode = 'Unknown';
-										}
-										echo static::colouriseString('ESC i ! ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Automatic Status Notification (', $mode, ')', "\n";
-										break;
-									case 0x55: // z
-										[$nb, $ns] = static::get($string, ++$i, 15);
-										$i += 14;
-										echo static::colouriseString('ESC i U ', 'light_blue'), static::colouriseString(implode(' ', $ns), 'light_green'), ' - Udocumented Command', "\n";
-										break;
-									case 0x7a: // z
-										[$nb, $ns] = static::get($string, ++$i, 10);
-										$i += 9;
-										$flags = [];
-										if ($nb[0] & 0x02) { $flags[] = '02=kind'; }
-										if ($nb[0] & 0x04) { $flags[] = '04=width'; }
-										if ($nb[0] & 0x08) { $flags[] = '08=length'; }
-										if ($nb[0] & 0x40) { $flags[] = '40=quality'; }
-										if ($nb[0] & 0x80) { $flags[] = '80=recover'; }
+			$classes = [];
+			$classes[] = AdvancedMode::class;
+			$classes[] = CompressionMode::class;
+			$classes[] = cutEachX::class;
+			$classes[] = Initialize::class;
+			$classes[] = Invalidate::class;
+			$classes[] = Margin::class;
+			$classes[] = Mode::class;
+			$classes[] = Notify::class;
+			$classes[] = PrintAndFeed::class;
+			$classes[] = PrintInfo::class;
+			$classes[] = PrintPage::class;
+			$classes[] = RasterLine::class;
+			$classes[] = RasterZero::class;
+			$classes[] = SwitchDynamicCommand::class;
+			$classes[] = Undocumented::class;
 
-										echo static::colouriseString('ESC i z ', 'light_blue'), static::colouriseString(implode(' ', $ns), 'light_green'), ' - Print Information ';
-										echo '(', implode(' ', $flags), ') ';
+			$classInfo = [];
+			foreach ($classes as $class) {
+				$ci = ['name' => $class::getName(),
+					   'argcount' => $class::argCount(),
+					   'magic' => $class::getMagic(),
+					   'magicstring' => implode(' ', str_split($class::getMagicString())),
+					   'decode' => fn($a) => $class::decodeBinary($a),
+					   'repeatable' => is_subclass_of($class, Repeatable::class),
+				      ];
 
-										if ($nb[0] & 0x02) {
-											switch ($nb[1]) {
-												case 0x00:
-													break;
-												case 0x01:
-													echo 'LaminatedTape ';
-													break;
-												case 0x03:
-													echo 'non-LaminatedTape ';
-													break;
-												case 0x11:
-													echo 'heat-shrink ';
-													break;
-												case 0xFF:
-													echo 'incompatible ';
-													break;
-												default:
-													echo 'unknown-media';
-													break;
-											}
-										}
-										if ($nb[0] & 0x04) { echo 'width=', $nb[2], ' '; }
-										if ($nb[0] & 0x08) { echo 'length=', $nb[3], ' '; }
-
-										$packed = chr($nb[4]) . chr($nb[5]) . chr($nb[6]) . chr($nb[7]);
-										echo 'lines=', unpack('V', $packed)[1], ' ';
-
-										switch ($nb[8]) {
-											case 0x00:
-												echo 'page=first';
-												break;
-											case 0x01:
-												echo 'page=middle';
-												break;
-											case 0x03:
-												echo 'page=last';
-												break;
-											default:
-												echo 'page=unknown';
-										}
-										echo "\n";
-
-										break;
-									case 0x4d: // M
-										[$n1b, $n1s] = static::get($string, ++$i);
-										$flags = [];
-										$flags[] = ($n1b & 0x40) ? '40=AutoCut' : '40=NoCut';
-										$flags[] = ($n1b & 0x80) ? '80=Mirror' : '80=NoMirror';
-
-										echo static::colouriseString('ESC i M ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Various mode settings ';
-										echo '(', implode(' ', $flags), ') ', "\n";
-										break;
-									case 0x41: // A
-										[$n1b, $n1s] = static::get($string, ++$i);
-										echo static::colouriseString('ESC i K ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Cut every X (', hexdec($n1s), ')', "\n";
-										break;
-									case 0x4B: // K
-										[$n1b, $n1s] = static::get($string, ++$i);
-										$flags = [];
-										$flags[] = ($n1b & 0x04) ? '04=HalfCut' : '04=NoHalfCut';
-										$flags[] = ($n1b & 0x08) ? '08=NoChain' : '08=Chain';
-										$flags[] = ($n1b & 0x10) ? '10=SpecialTape' : '10=NoSpecialTape';
-										$flags[] = ($n1b & 0x40) ? '40=HighRes' : '40=Normal';
-										$flags[] = ($n1b & 0x80) ? '80=NoBufferClear' : '80=BufferClear';
-
-										echo static::colouriseString('ESC i K ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Advanced mode settings ';
-										echo '(', implode(' ', $flags), ') ', "\n";
-										break;
-									case 0x64: // d
-										[$nb, $ns] = static::get($string, ++$i, 2);
-										$i += 1;
-										$packed = chr($nb[0]) . chr($nb[1]);
-										echo static::colouriseString('ESC i d ', 'light_blue'), static::colouriseString(implode(' ', $ns), 'light_green'), ' - Margin (', unpack('v', $packed)[1], ' lines)', "\n";
-										break;
-									default:
-										throw new Exception('Unknown `' . static::colouriseString('ESC i') . '` character encountered: ' . $s);
-								}
-								break;
-							default:
-								throw new Exception('Unknown `' . static::colouriseString('ESC') . '` character encountered: ' . $s);
-						}
-						break;
-					case 0x4D: // M
-						[$n1b, $n1s] = static::get($string, ++$i);
-						$compressionMode = $n1b;
-						switch ($n1b) {
-							case 0:
-								$mode = 'None';
-								break;
-							case 1:
-								$mode = 'Reserved';
-								break;
-							case 2:
-								$mode = 'TIFF';
-								break;
-							default:
-								$mode = 'Unknown';
-						}
-						echo static::colouriseString('M ', 'light_blue'), static::colouriseString($n1s, 'light_green'), ' - Compression (', $mode, ')', "\n";
-
-						break;
-					case 0x5a: // Z
-						echo static::colouriseString('Z', 'light_blue'), ' - Zero Graphics Transfer ';
-						if ($drawRaster) {
-							echo sprintf('%81s', ' ');
-							echo '│', str_repeat(' ', 128), '│';
-						}
-						echo "\n";
-						break;
-					case 0x47: // G
-						[$nb, $ns] = static::get($string, ++$i, 2);
-						$i++;
-						$packed = chr($nb[0]) . chr($nb[1]);
-						$len = unpack('v', $packed)[1];
-						echo static::colouriseString('G ', 'light_blue'), static::colouriseString(implode(' ', $ns), 'light_green'), ' - Graphics Transfer ';
-
-						[$db, $ds] = static::get($string, $i + 1, $len);
-						$i += $len;
-						echo sprintf('%-80s', '(' . $len . ' bytes) [' . implode(' ', $ds) . '] ');
-						if ($drawRaster) {
-							// Draw
-							if ($compressionMode == 2) {
-								// Decompress the drawbits
-								$drawBits = [];
-								for ($d = 0; $d < count($db); $d++) {
-									$bytes = unpack('c', chr($db[$d]))[1];
-									if ($bytes < 0) {
-										$bytes = abs($bytes);
-										$d++;
-										for ($z = 0; $z <= $bytes; $z++) { $drawBits[] = $db[$d]; }
-									} else {
-										for ($z = 0; $z <= $bytes; $z++) { $drawBits[] = $db[++$d]; }
-									}
-								}
-							} else {
-								// Already decompressed.
-								$drawBits = $db;
-							}
-
-							echo '│';
-							foreach (array_reverse($drawBits) as $bit) {
-								$bin = str_pad(strrev(decbin($bit)), 8, '0', STR_PAD_RIGHT);
-								// $bin = str_pad(decbin($bit), 8, '0', STR_PAD_RIGHT);
-								echo str_replace('1', '█', str_replace('0', ' ', $bin));
-							}
-							echo '│';
-							}
-						echo "\n";
-
-						break;
-					case 0x0C: // FF
-						echo static::colouriseString('FF', 'light_blue'), ' - Print Page', "\n";
-						break;
-					case 0x1A: // FF
-						echo static::colouriseString('^Z', 'light_blue'), ' - Print and Feed', "\n";
-						break;
-					default:
-						throw new Exception('Unknown character encountered: ' . $s);
+				if (is_subclass_of($class, DynamicLength::class)) {
+					$ci['additionalargcount'] = fn($a) => $class::getAdditionalArgCount($a);
 				}
+
+				if (is_subclass_of($class, Drawable::class)) {
+					$ci['draw'] = fn($a, $c) => $class::draw($a, $c);
+				}
+
+				// Friendly replacements
+				$ci['displaystring'] = $ci['magicstring'];
+				$ci['displaystring'] = str_replace(chr(0x00), '00', $ci['displaystring']);
+				$ci['displaystring'] = str_replace(chr(0x1A), '^Z', $ci['displaystring']);
+				$ci['displaystring'] = str_replace(chr(0x1B), 'ESC', $ci['displaystring']);
+
+				$classInfo[] = $ci;
+			}
+
+			$compressionMode = CompressionMode::NONE;
+			// Go through each bit of data.
+			for ($i = 0; $i < strlen($string); /* Code below increments as needed.*/ ) {
+				// Check each of our known classes.
+				foreach ($classInfo as $ci) {
+					// If this class is not applicable, abort.
+					if (strlen($string) < $i + count($ci['magic'])) { continue; }
+
+					// Get the amount of data needed to check if this is a match
+					[$bb, $bs] = static::get($string, $i, count($ci['magic']));
+
+					// Check if we match.
+					if ($ci['magic'] == $bb) {
+						// We do, so lets output some information.
+						$lineLen = 0;
+						$i += count($ci['magic']);
+
+						// This nice display string of this class
+						echo static::colouriseString($ci['displaystring'], 'light_blue');
+						$lineLen += strlen($ci['displaystring']);
+
+						// If this class accepts args, we also want to display those.
+						if ($ci['argcount'] > 0) {
+							[$ab, $as] = static::get($string, $i, $ci['argcount']);
+							$i += $ci['argcount'];
+							$ias = implode(' ', $as);
+							echo ' ', static::colouriseString($ias, 'light_green');
+							$lineLen += 1 + strlen($ias);
+						} else {
+							[$ab, $as] = [[], []];
+						}
+
+						// Name
+						echo ' - ', $ci['name'];
+						$lineLen += 3 + strlen($ci['name']);
+
+						// If this class accepts args, then we want to decode them where possible.
+						if ($ci['argcount'] > 0) {
+							// Some classes have dynamic length additional args, so also grab those.
+							if (isset($ci['additionalargcount'])) {
+								$additionalargcount = $ci['additionalargcount']($ab);
+								[$eb, $es] = static::get($string, $i, $additionalargcount);
+								$i += $additionalargcount;
+
+								$ab = array_merge($ab, $eb);
+								$as = array_merge($as, $es);
+							}
+
+							// Show decoded args.
+							$decodeInfo = $ci['decode']($ab);
+							echo ' ', $decodeInfo;
+							$lineLen += 1 + strlen($decodeInfo);
+						}
+
+						// Extra processing we might need to do for state tracking.
+						switch ($ci['magic']) {
+							case CompressionMode::getMagic():
+								$compressionMode = $ab[0];
+								break;
+						}
+
+						// Track Repeats.
+						if ($ci['repeatable']) {
+							$count = 1;
+							while (static::get($string, $i, count($ci['magic']) + count($ab))[0] === array_merge($ci['magic'], $ab)) {
+								$count++;
+								$i += count($ci['magic']) + count($ab);
+							}
+							if ($count > 0) {
+								echo ' (Repeated: ', $count, ')';
+								$lineLen += 13 + strlen($count);
+							}
+						}
+
+						// Drawing.
+						if ($drawRaster && isset($ci['draw'])) {
+							$drawString = $ci['draw']($ab, $compressionMode);
+
+							if (!empty($drawString)) {
+								echo str_repeat(' ', max(0, 95 - $lineLen));
+								echo '│', $drawString, '│';
+							}
+						}
+						echo "\n";
+
+						continue 2;
+					}
+				}
+
+				[$bb, $bs] = static::get($string, $i, 10);
+				throw new Exception('Unknown string encountered: ' . implode(' ', $bs));
 			}
 		}
 	}

@@ -1,5 +1,7 @@
 <?php
-	namespace ShaneMcC\PTouchPrint\JobBinary;
+	namespace ShaneMcC\PTouchPrint\JobBinary\Actions;
+
+	use ShaneMcC\PTouchPrint\JobBinary\JobBinary;
 
 	/**
 	 * Advanced mode settings - ESC i K
@@ -17,7 +19,19 @@
 			$this->chainPrinting = $chainPrinting;
 		}
 
-		public function getBinary(): String {
+		public static function getMagic(): array {
+			return [0x1B, 0x69, 0x4B]; // ESC i K
+		}
+
+		public static function getName(): string {
+			return 'Advanced mode settings';
+		}
+
+		public static function argCount(): int {
+			return 1;
+		}
+
+		public  function getBinary(): String {
 			$val = 0;
 			$val += (0 << 0); // Not Used
 			$val += (0 << 1); // Not Used
@@ -28,11 +42,19 @@
 			$val += (0 << 6); // High Resolution
 			$val += (0 << 7); // No buffer cleaning.
 
-			$data = '';
-			$data .= chr(0x1B); // ESC
-			$data .= chr(0x69); // i
-			$data .= chr(0x4B); // K
+			$data = static::getMagicString();
 			$data .= chr($val); // {n1}
 			return $data;
+		}
+
+		public static function decodeBinary(array $args): String {
+			$flags = [];
+			$flags[] = ($args[0] & 0x04) ? '04=HalfCut' : '04=NoHalfCut';
+			$flags[] = ($args[0] & 0x08) ? '08=NoChain' : '08=Chain';
+			$flags[] = ($args[0] & 0x10) ? '10=SpecialTape' : '10=NoSpecialTape';
+			$flags[] = ($args[0] & 0x40) ? '40=HighRes' : '40=Normal';
+			$flags[] = ($args[0] & 0x80) ? '80=NoBufferClear' : '80=BufferClear';
+
+			return '(' . implode(' ', $flags) . ')';
 		}
 	}

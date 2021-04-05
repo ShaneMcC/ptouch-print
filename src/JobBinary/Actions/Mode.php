@@ -1,5 +1,7 @@
 <?php
-	namespace ShaneMcC\PTouchPrint\JobBinary;
+	namespace ShaneMcC\PTouchPrint\JobBinary\Actions;
+
+	use ShaneMcC\PTouchPrint\JobBinary\JobBinary;
 
 	/**
 	 * Various mode settings - ESC i M
@@ -17,7 +19,19 @@
 			$this->mirror = $mirror;
 		}
 
-		public function getBinary(): String {
+		public static function getMagic(): array {
+			return [0x1B, 0x69, 0x4D]; // ESC i M
+		}
+
+		public static function getName(): string {
+			return 'Various mode settings';
+		}
+
+		public static function argCount(): int {
+			return 1;
+		}
+
+		public  function getBinary(): String {
 			$val = 0;
 			$val += (0 << 0); // Not Used
 			$val += (0 << 1); // Not Used
@@ -28,11 +42,16 @@
 			$val += ($this->autoCut << 6); // Auto Cut (1 == yes, 0 == no)
 			$val += ($this->mirror << 7); // Mirror (1 = no, 0 == yes)
 
-			$data = '';
-			$data .= chr(0x1B); // ESC
-			$data .= chr(0x69); // i
-			$data .= chr(0x4D); // M
+			$data = static::getMagicString();
 			$data .= chr($val); // {n1}
 			return $data;
+		}
+
+		public static function decodeBinary(array $args): String {
+			$flags = [];
+			$flags[] = ($args[0] & 0x40) ? '40=AutoCut' : '40=NoCut';
+			$flags[] = ($args[0] & 0x80) ? '80=Mirror' : '80=NoMirror';
+
+			return '(' . implode(' ', $flags) . ')';
 		}
 	}
