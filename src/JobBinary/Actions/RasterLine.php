@@ -4,6 +4,7 @@
 	use ShaneMcC\PTouchPrint\JobBinary\Drawable;
 	use ShaneMcC\PTouchPrint\JobBinary\DynamicLength;
 	use ShaneMcC\PTouchPrint\JobBinary\JobBinary;
+	use ShaneMcC\PTouchPrint\RasterImage;
 
 	/**
 	 * Raster graphics transfer - G
@@ -129,12 +130,6 @@
 				$drawBits = array_slice($args, 2);
 			}
 
-			$result = '';
-			foreach (array_reverse($drawBits) as $bit) {
-				$bin = str_pad(strrev(decbin($bit)), 8, '0', STR_PAD_RIGHT);
-				$result .= str_replace('1', '█', str_replace('0', ' ', $bin));
-			}
-
-			return $result;
+			return RasterImage::getLineForDisplay($drawBits, true);
 		}
 	}

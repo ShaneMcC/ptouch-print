@@ -127,16 +127,26 @@
 		public function displayImage() {
 			echo '┌', str_repeat('─', $this->getWidth()), '┐', "\n";
 			foreach ($this->lines as $line) {
-				echo '│';
-				foreach (($this->mirrored ? array_reverse($line) : $line) as $bit) {
-					$bin = decbin($bit);
-					if ($this->mirrored) { $bin = strrev($bin); }
-					$bin = str_pad($bin, 8, '0', $this->mirrored ? STR_PAD_RIGHT : STR_PAD_LEFT);
-					echo str_replace('1', '█', str_replace('0', ' ', $bin));
-				}
-				echo '│';
-				echo "\n";
+				echo '│', RasterImage::getLineForDisplay($line, $this->mirrored), '│', "\n";
 			}
 			echo '└', str_repeat('─', $this->getWidth()), '┘', "\n";
+		}
+
+		/**
+		 * Get a single line of data as a String suitable for displaying what the line looks like.
+		 *
+		 * @param array $line Line to display
+		 * @param bool $isMirrored Is this line stored Mirrored?
+		 * @return String String representation of line.
+		 */
+		public static function getLineForDisplay(array $line, bool $isMirrored = true): String {
+			$result = '';
+			foreach (($isMirrored ? array_reverse($line) : $line) as $bit) {
+				$bin = decbin($bit);
+				if ($isMirrored) { $bin = strrev($bin); }
+				$bin = str_pad($bin, 8, '0', $isMirrored ? STR_PAD_RIGHT : STR_PAD_LEFT);
+				$result .= str_replace('1', '█', str_replace('0', ' ', $bin));
+			}
+			return $result;
 		}
 	}
