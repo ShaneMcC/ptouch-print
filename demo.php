@@ -71,8 +71,8 @@
 		echo "\n";
 		echo $ex->getTraceAsString();
 		echo "\n";
-	    die(1);
-    }
+		die(1);
+	}
 
 	echo 'You need to specify something to do.', "\n";
 	die(1);

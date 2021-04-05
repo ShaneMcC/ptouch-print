@@ -93,11 +93,11 @@
 			$classInfo = [];
 			foreach ($classes as $class) {
 				$ci = ['name' => $class::getName(),
-					   'argcount' => $class::argCount(),
-					   'magic' => $class::getMagic(),
-					   'magicstring' => implode(' ', str_split($class::getMagicString())),
-					   'decode' => fn($a) => $class::decodeBinary($a),
-					   'repeatable' => is_subclass_of($class, Repeatable::class),
+				       'argcount' => $class::argCount(),
+				       'magic' => $class::getMagic(),
+				       'magicstring' => implode(' ', str_split($class::getMagicString())),
+				       'decode' => fn($a) => $class::decodeBinary($a),
+				       'repeatable' => is_subclass_of($class, Repeatable::class),
 				      ];
 
 				if (is_subclass_of($class, DynamicLength::class)) {
