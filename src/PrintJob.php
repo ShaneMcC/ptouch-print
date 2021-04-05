@@ -3,9 +3,22 @@
 	namespace ShaneMcC\PTouchPrint;
 
 	use Exception;
+	use ShaneMcC\PTouchPrint\JobBinary\AdvancedMode;
+	use ShaneMcC\PTouchPrint\JobBinary\CompressionMode;
+	use ShaneMcC\PTouchPrint\JobBinary\cutEachX;
+	use ShaneMcC\PTouchPrint\JobBinary\Initialize;
+	use ShaneMcC\PTouchPrint\JobBinary\Invalidate;
+	use ShaneMcC\PTouchPrint\JobBinary\Margin;
+	use ShaneMcC\PTouchPrint\JobBinary\Mode;
+	use ShaneMcC\PTouchPrint\JobBinary\Notify;
+	use ShaneMcC\PTouchPrint\JobBinary\PrintAndFeed;
+	use ShaneMcC\PTouchPrint\JobBinary\PrintInfo;
+	use ShaneMcC\PTouchPrint\JobBinary\PrintPage;
+	use ShaneMcC\PTouchPrint\JobBinary\RasterLine;
+	use ShaneMcC\PTouchPrint\JobBinary\SwitchDynamicCommand;
 
 	class PrintJob {
-		private PTouchJobBinary $job;
+		private array $job;
 
 		private int $autoCut;
 		private bool $halfCut;
@@ -44,15 +57,19 @@
 		 * @return $this This for chaining.
 		 */
 		public function startJob(): PrintJob {
-			$this->job = new PTouchJobBinary();
-			$this->job->printInfo($this->tapeSize);
-			$this->job->mode(($this->autoCut > 0));
+			$this->job = [];
+			$this->job[] = new Invalidate();
+			$this->job[] = new Initialize();
+			$this->job[] = new SwitchDynamicCommand();
+			$this->job[] = new Notify(false);
+			$this->job[] = new PrintInfo($this->tapeSize);
+			$this->job[] = new Mode(($this->autoCut > 0));
 			if ($this->autoCut > 0) {
-				$this->job->cutEachX($this->autoCut);
+				$this->job[] = new CutEachX($this->autoCut);
 			}
-			$this->job->advancedMode($this->halfCut, $this->chainPrinting);
-			$this->job->margin($this->marginSize);
-			$this->job->compressionMode();
+			$this->job[] = new AdvancedMode($this->halfCut, $this->chainPrinting);
+			$this->job[] = new Margin($this->marginSize);
+			$this->job[] = new CompressionMode();
 			$this->jobState = PrintJob::JOBSTATE_START;
 
 			return $this;
@@ -88,8 +105,11 @@
 				throw new Exception('You must call startJob() before adding images.');
 			}
 
-			if ($this->hasImages) { $this->job->printPage(); }
-			$this->job->rasterImage($image);
+			if ($this->hasImages) {$this->job[] = new PrintPage(); }
+
+			foreach ($image->getLines() as $line) {
+				$this->job[] = new RasterLine($line, CompressionMode::TIFF);
+			}
 			$this->hasImages = true;
 
 			return $this;
@@ -106,10 +126,41 @@
 				throw new Exception('You must add at least 1 image.');
 			}
 
-			$this->job->printAndFeed();
+			$this->job[] = new PrintAndFeed();
 
 			$this->jobState = PrintJob::JOBSTATE_READY;
 			return $this;
+		}
+
+		/**
+		 * Get the binary representation of this job so far.
+		 *
+		 * @return String String representing the job so far
+		 */
+		private function getJobDataBinary(): String {
+			return array_reduce($this->job, fn($c, $i) => $c . $i->getBinary(), '');
+		}
+
+		/**
+		 * Print this print job to a String
+		 *
+		 * @throws Exception If the job is not printable
+		 */
+		public function printToString(): String {
+			if ($this->jobState != PrintJob::JOBSTATE_READY) {
+				throw new Exception('You can not print an incomplete job.');
+			}
+
+			return $this->getJobDataBinary();
+		}
+
+		/**
+		 * Print this print job to STDOUT
+		 *
+		 * @throws Exception If the job is not printable
+		 */
+		public function printToSTDOUT() {
+			echo $this->printToString();
 		}
 
 		/**
@@ -128,7 +179,7 @@
 			if (!$fp) {
 				throw new Exception('There was an error connecting to the printer: ' . $errstr . '(' . $errno . ')');
 			} else {
-				fwrite($fp, $this->job->getData());
+				fwrite($fp, $this->getJobDataBinary());
 				fclose($fp);
 			}
 		}
@@ -152,7 +203,7 @@
 			$pipes = [];
 			$proc = proc_open($cmd, $descriptorspec, $pipes);
 			if ($proc) {
-				fwrite($pipes[0], $this->job->getData());
+				fwrite($pipes[0], $this->getJobDataBinary());
 				fclose($pipes[0]);
 				fclose($pipes[1]);
 				fclose($pipes[2]);
@@ -162,37 +213,23 @@
 		}
 
 		/**
-		 * Print this print job to a String
-		 *
-		 * @throws Exception If the job is not printable
-		 */
-		public function printToString(): String {
-			if ($this->jobState != PrintJob::JOBSTATE_READY) {
-				throw new Exception('You can not print an incomplete job.');
-			}
-
-			return $this->job->getData();
-		}
-
-		/**
-		 * Print this print job to STDOUT
-		 *
-		 * @throws Exception If the job is not printable
-		 */
-		public function printToSTDOUT() {
-			echo $this->printToString();
-		}
-
-		/**
 		 * Print this print job to STDOUT as HEX for debugging.
 		 *
+		 * @param int $width Width of output in characters
 		 * @throws Exception If the job is not printable
 		 */
-		public function printHEXToSTDOUT() {
+		public function printHEXToSTDOUT(int $width = 16) {
 			if ($this->jobState != PrintJob::JOBSTATE_READY) {
 				throw new Exception('You can not print an incomplete job.');
 			}
 
-			$this->job->displayHex();
+			$c = 1;
+			foreach (str_split($this->getJobDataBinary()) as $d) {
+				echo str_pad(dechex(ord($d)), 2, '0', STR_PAD_LEFT), ' ';
+				if ($c++ % $width == 0) {
+					echo "\n";
+				}
+			}
+			echo "\n";
 		}
 	}
