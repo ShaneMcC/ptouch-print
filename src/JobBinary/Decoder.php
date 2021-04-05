@@ -1,5 +1,5 @@
 <?php
-	namespace ShaneMcC\PTouchPrint;
+	namespace ShaneMcC\PTouchPrint\JobBinary;
 
 	use Exception;
 	use ShaneMcC\PTouchPrint\JobBinary\Actions\AdvancedMode;
@@ -17,9 +17,6 @@
 	use ShaneMcC\PTouchPrint\JobBinary\Actions\RasterZero;
 	use ShaneMcC\PTouchPrint\JobBinary\Actions\SwitchDynamicCommand;
 	use ShaneMcC\PTouchPrint\JobBinary\Actions\Undocumented;
-	use ShaneMcC\PTouchPrint\JobBinary\Drawable;
-	use ShaneMcC\PTouchPrint\JobBinary\DynamicLength;
-	use ShaneMcC\PTouchPrint\JobBinary\Repeatable;
 
 	/**
 	 * This will decode a raw stream and display it to the user.
@@ -28,7 +25,7 @@
 	 *
 	 * @package ShaneMcC\PTouchPrint
 	 */
-	class PTouchJobBinaryDecoder {
+	class Decoder {
 		private static function get(String &$string, int $index, int $count = 1) {
 			$b = [];
 			$s = [];

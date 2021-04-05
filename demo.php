@@ -5,14 +5,14 @@
 
 	use ShaneMcC\PTouchPrint\RasterImage;
 	use ShaneMcC\PTouchPrint\PrintJob;
-	use ShaneMcC\PTouchPrint\PTouchJobBinaryDecoder;
+	use ShaneMcC\PTouchPrint\JobBinary\Decoder;
 
 	$options = getopt('', ['size:', 'file:', 'cups:', 'ip:', 'port:', 'raw', 'debug', 'out', 'decode', 'stdin']);
 	$size = isset($options['size']) ? $options['size'] : 12;
 
 	try {
 		if (isset($options['decode']) && isset($options['stdin'])) {
-			PTouchJobBinaryDecoder::decode(stream_get_contents(STDIN), isset($options['out']));
+			Decoder::decode(stream_get_contents(STDIN), isset($options['out']));
 			die(0);
 		}
 
@@ -36,7 +36,7 @@
 		$job->startJob()->addImage($image)->endJob();
 
 		if (isset($options['decode'])) {
-			PTouchJobBinaryDecoder::decode($job->printToString(), isset($options['out']));
+			Decoder::decode($job->printToString(), isset($options['out']));
 			die(0);
 		}
 
