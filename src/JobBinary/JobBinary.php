@@ -1,6 +1,14 @@
 <?php
 	namespace ShaneMcC\PTouchPrint\JobBinary;
 
+	/**
+	 *  Classes that actually generate the binary data needed to print.
+	 *
+	 * Most of this comes from https://download.brother.com/welcome/docp100064/cv_pte550wp750wp710bt_eng_raster_101.pdf
+	 * with clarifications from other sources:
+	 *  - https://github.com/clarkewd/ptouch-print
+	 *  - https://github.com/philpem/printer-driver-ptouch
+	 */
 	abstract class JobBinary {
 		public abstract static function getMagic(): array;
 
