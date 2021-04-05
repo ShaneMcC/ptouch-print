@@ -31,7 +31,7 @@
 			die(1);
 		}
 
-		$image = new RasterImage($options['file']);
+		$image = RasterImage::fromFile($options['file']);
 		$job = new PrintJob($size);
 		$job->startJob()->addImage($image)->endJob();
 

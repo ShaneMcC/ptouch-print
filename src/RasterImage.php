@@ -20,23 +20,53 @@
 		 * @param int $maxPixels Max pixels for image height. Leave at default mostly. (Default: 128)
 		 * @param bool $storeMirrored Store the image flipped. Leave at default mostly. (Default: true)
 		 */
-		public function __construct(String $imageFile, $maxPixels = 128, $storeMirrored = true) {
+		public static function fromFile(String $imageFile, int $maxPixels = 128, bool $storeMirrored = true): RasterImage {
+			$image = imagecreatefrompng($imageFile);
+			$ri = new RasterImage($image, $maxPixels, $storeMirrored);
+			imagedestroy($image);
+			return $ri;
+		}
+
+		/**
+		 * Create a new RasterImage from an image resource.
+		 *
+		 * @param mixed $gdimage resource to use.
+		 * @param int $maxPixels Max pixels for image height. Leave at default mostly. (Default: 128)
+		 * @param bool $storeMirrored Store the image flipped. Leave at default mostly. (Default: true)
+		 */
+		public static function fromGDImage($gdimage, int $maxPixels = 128, bool $storeMirrored = true): RasterImage {
+			return new RasterImage($gdimage, $maxPixels, $storeMirrored);
+		}
+
+		/**
+		 * Create a new RasterImage from an image resource.
+		 *
+		 * @param mixed $imageResource Image resource to use.
+		 * @param int $maxPixels Max pixels for image height. Leave at default mostly. (Default: 128)
+		 * @param bool $storeMirrored Store the image flipped. Leave at default mostly. (Default: true)
+		 */
+		private function __construct($imageResource, int $maxPixels = 128, bool $storeMirrored = true) {
 			// Storage mode.
 			$this->mirrored = $storeMirrored;
 
 			// The image lines.
 			$this->lines = [];
 
-			// Load the image.
-			$original = imagecreatefrompng($imageFile);
+			// Generate raster for this image.
+			$this->generateRasterLines($imageResource, $maxPixels);
+		}
 
-			// Convert to greyscale
-			imagefilter($original, IMG_FILTER_GRAYSCALE);
-			imagefilter($original, IMG_FILTER_CONTRAST, -100);
-
+		/**
+		 * @param $image
+		 * @param int $maxPixels
+		 */
+		private function generateRasterLines($original, int $maxPixels): void {
 			// Rotate into the orientation we need it for printing.
 			$image = imagerotate($original, 270, 0);
-			imagedestroy($original);
+
+			// Convert to greyscale
+			imagefilter($image, IMG_FILTER_GRAYSCALE);
+			imagefilter($image, IMG_FILTER_CONTRAST, -100);
 
 			$width = imagesx($image);
 			$height = imagesy($image);
