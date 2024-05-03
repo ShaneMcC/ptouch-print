@@ -1,9 +1,9 @@
 # ptouch-print
-PHP Library to print to brother ptouch printers.
+PHP Library to print to Brother P-touch printers.
 
-This was designed and tested with a PT-E550W, but it should also work with P750W abd P710BT. 
+This was designed and tested with a PT-E550W, but it should also work with P750W and P710BT. 
 
-I'm happy to add support for other devices if you raise an issue with a link to the raster documentation for the device (or a description of what changes are required)
+I'm happy to add support for other devices if you raise an issue with a link to the raster documentation for the device (or a description of what changes are required).
 
 ## Usage
 
@@ -24,8 +24,8 @@ Then:
 	use ShaneMcC\PTouchPrint\RasterImage;
 	use ShaneMcC\PTouchPrint\PrintJob;
 	
-	$someFile = __DIR__ . '/images/demo-12mm.png';
-	$image = new RasterImage($someFile);
+	$someFile = __DIR__ . '/vendor/ptouch-print/images/demo-12mm.png';
+	$image = RasterImage::fromFile($someFile);
 	$job = new PrintJob(24);
 	$job->startJob()->addImage($image)->endJob();
 	
